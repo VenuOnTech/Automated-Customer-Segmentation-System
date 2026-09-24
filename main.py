@@ -54,14 +54,17 @@ def run():
     if not os.path.exists(parquet_path):
         print(f"📥 Converting {raw_path} to optimized Parquet...")
         df = pd.read_excel(raw_path)
-        df.to_parquet(parquet_path, engine="fastparquet")
+        
+        # Ensure object columns with mixed types are uniformly strings
+        df["StockCode"] = df["StockCode"].astype(str)
+        df["InvoiceNo"] = df["InvoiceNo"].astype(str)
+        if "Description" in df.columns:
+            df["Description"] = df["Description"].astype(str)
+            
+        df.to_parquet(parquet_path, engine="pyarrow", index=False)
     
     print(f"📂 Loading dataset from {parquet_path}")
-    df = pd.read_parquet(parquet_path)
-    
-    # Optional Lite Mode for CI/Testing
-    if len(df) > 50000:
-        df = df.sample(n=50000, random_state=42)
+    df = pd.read_parquet(parquet_path, engine="pyarrow")
         
     # 2. Extract Trajectories
     print("⏳ Building customer sequences and temporal intervals...")
