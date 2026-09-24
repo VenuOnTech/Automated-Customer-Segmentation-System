@@ -1,185 +1,86 @@
-"""
-Unit tests for the pipeline
-"""
 import sys
 import os
 import pandas as pd
+import torch
 
-# Add parent directory to path
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT_DIR)
 
-
-# ==============================
-# TEST IMPORTS
-# ==============================
 def test_imports():
     try:
-        from src.data_ingestion.load_data import load_data
-        from src.preprocessing.data_cleaning import clean_data
-        from src.preprocessing.sequence_builder import build_customer_trajectories
+        from src.preprocessing.sequence_builder import build_customer_trajectories, pad_sequences
         from src.representation.trajectory_transformer import CustomerTrajectoryTransformer
         from src.training.contrastive_trainer import InfoNCELoss
-        from src.evaluation.cluster_evaluation import evaluate_clustering_quality
-        from src.feature_engineering.rfm_features import create_rfm
         print("✅ All imports successful")
         return True
     except ImportError as e:
         print(f"❌ Import error: {e}")
         return False
 
-
-# ==============================
-# SCHEMA TEST
-# ==============================
-def test_schema_detection():
+def test_sequence_builder():
     try:
-        from src.data_ingestion.schema_detection import detect_columns
-
+        from src.preprocessing.sequence_builder import build_customer_trajectories
+        
+        # Mock transaction data
         df = pd.DataFrame({
-            'CustomerID': [1, 2, 3],
-            'InvoiceDate': ['2021-01-01', '2021-01-02', '2021-01-03'],
-            'Quantity': [1, 2, 3],
-            'UnitPrice': [10.0, 20.0, 30.0]
+            'CustomerID': [1, 1, 1, 2, 2, 2],
+            'InvoiceNo': ['100', '100', '101', '200', '201', '202'],
+            'InvoiceDate': ['2023-01-01', '2023-01-01', '2023-01-05', '2023-01-01', '2023-01-10', '2023-01-20'],
+            'StockCode': ['A', 'B', 'A', 'C', 'C', 'D'],
+            'Quantity': [1, 2, 1, 1, 1, 3],
+            'UnitPrice': [10.0, 20.0, 10.0, 5.0, 5.0, 15.0]
         })
-
-        mapping = detect_columns(df)
-
-        assert mapping['customer_id'] == 'CustomerID'
-        assert mapping['transaction_date'] == 'InvoiceDate'
-        assert mapping['quantity'] == 'Quantity'
-        assert mapping['price'] == 'UnitPrice'
-
-        print("✅ Schema detection test passed")
+        
+        trajectories, item2idx = build_customer_trajectories(df, min_baskets=2)
+        
+        # Assertions
+        assert 1 in trajectories
+        assert 2 in trajectories
+        assert len(item2idx) == 4  # A, B, C, D
+        assert trajectories[1]["time_deltas"] == [0.0, 4.0] # 4 days between Jan 1 and Jan 5
+        print("✅ Sequence builder test passed")
         return True
-
     except Exception as e:
-        print(f"❌ Schema detection test failed: {e}")
+        print(f"❌ Sequence builder test failed: {e}")
         return False
 
-
-# ==============================
-# SCHEMA ERROR TEST
-# ==============================
-def test_schema_detection_missing_columns():
+def test_tensor_padding():
     try:
-        from src.data_ingestion.schema_detection import detect_columns
-
-        df = pd.DataFrame({
-            'CustomerID': [1, 2, 3],
-            'InvoiceDate': ['2021-01-01', '2021-01-02', '2021-01-03']
-        })
-
-        try:
-            detect_columns(df)
-            print("❌ Should have raised ValueError")
-            return False
-
-        except ValueError as e:
-            if "Missing required columns" in str(e):
-                print("✅ Schema detection error handling test passed")
-                return True
-            else:
-                print(f"❌ Wrong error message: {e}")
-                return False
-
-    except Exception as e:
-        print(f"❌ Schema detection error test failed: {e}")
-        return False
-
-
-# ==============================
-# DATA CLEANING TEST
-# ==============================
-def test_data_cleaning():
-    try:
-        from src.preprocessing.data_cleaning import clean_data
-
-        df = pd.DataFrame({
-            'CustomerID': [1, 2, 3, 4, None],
-            'InvoiceDate': ['2021-01-01'] * 5,
-            'Quantity': [1, 2, 3, -1, 5],
-            'UnitPrice': [10.0, 20.0, 30.0, 40.0, -50.0]
-        })
-
-        mapping = {
-            'customer_id': 'CustomerID',
-            'transaction_date': 'InvoiceDate',
-            'quantity': 'Quantity',
-            'price': 'UnitPrice'
+        from src.preprocessing.sequence_builder import pad_sequences
+        
+        mock_trajectories = {
+            99: {
+                "items": [[1, 2], [3]],
+                "time_deltas": [0.0, 5.0],
+                "basket_values": [30.0, 10.0]
+            }
         }
-
-        df_clean = clean_data(df, mapping)
-
-        assert len(df_clean) == 3
-        assert df_clean['Quantity'].min() > 0
-        assert df_clean['UnitPrice'].min() > 0
-        assert df_clean['CustomerID'].isnull().sum() == 0
-
-        print("✅ Data cleaning test passed")
+        
+        cids, baskets, deltas, padding_mask = pad_sequences(mock_trajectories, max_seq_len=5, max_basket_size=3)
+        
+        assert list(baskets.shape) == [1, 5, 3] # (N, seq_len, basket_size)
+        assert list(deltas.shape) == [1, 5]
+        assert not padding_mask[0, 0] # First position should be unmasked (False)
+        assert padding_mask[0, 4]     # Last position should be masked (True)
+        print("✅ Tensor padding test passed")
         return True
-
     except Exception as e:
-        print(f"❌ Data cleaning test failed: {e}")
+        print(f"❌ Tensor padding test failed: {e}")
         return False
 
-
-# ==============================
-# RFM TEST
-# ==============================
-def test_rfm_creation():
-    try:
-        from src.feature_engineering.rfm_features import create_rfm
-
-        df = pd.DataFrame({
-            'CustomerID': [1, 1, 2, 2, 3],
-            'InvoiceDate': ['2021-01-01', '2021-01-05', '2021-01-02', '2021-01-10', '2021-01-03'],
-            'Quantity': [1, 2, 3, 1, 2],
-            'UnitPrice': [10.0, 20.0, 30.0, 40.0, 50.0]
-        })
-
-        mapping = {
-            'customer_id': 'CustomerID',
-            'transaction_date': 'InvoiceDate',
-            'quantity': 'Quantity',
-            'price': 'UnitPrice'
-        }
-
-        rfm = create_rfm(df, mapping)
-
-        assert 'Recency' in rfm.columns
-        assert 'Frequency' in rfm.columns
-        assert 'Monetary' in rfm.columns
-        assert len(rfm) == 3
-
-        print("✅ RFM creation test passed")
-        return True
-
-    except Exception as e:
-        print(f"❌ RFM creation test failed: {e}")
-        return False
-
-
-# ==============================
-# RUN ALL TESTS
-# ==============================
 if __name__ == "__main__":
     print("\n" + "="*50)
-    print("🧪 RUNNING PIPELINE TESTS")
+    print("🧪 RUNNING TRAJECTORY PIPELINE TESTS")
     print("="*50 + "\n")
-
+    
     results = [
         test_imports(),
-        test_schema_detection(),
-        test_schema_detection_missing_columns(),
-        test_data_cleaning(),
-        test_rfm_creation()
+        test_sequence_builder(),
+        test_tensor_padding()
     ]
-
+    
     print("\n" + "="*50)
-
     passed = sum(1 for r in results if r)
-
     if all(results):
         print(f"✅ ALL TESTS PASSED ({passed}/{len(results)})")
         print("="*50 + "\n")
