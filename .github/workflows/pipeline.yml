@@ -69,7 +69,7 @@ jobs:
           echo "📥 Downloading dataset..."
 
           curl -L -o data/raw/Online_Retail.xlsx \
-          "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx"
+          "[https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx)"
 
           if [ ! -f data/raw/Online_Retail.xlsx ]; then
             echo "❌ Dataset download failed"
@@ -97,22 +97,10 @@ jobs:
       - name: Verify outputs
         run: |
           echo "🔍 Checking outputs..."
-
-          if [ ! -f outputs/customer_segments.csv ]; then
-            echo "❌ customer_segments.csv missing!"
+          if [ ! -f outputs/transformer_segments.csv ]; then
+            echo "❌ transformer_segments.csv missing!"
             exit 1
           fi
-
-          if [ ! -f outputs/feature_store/rfm_features_v1.csv ]; then
-            echo "❌ rfm_features_v1.csv missing!"
-            exit 1
-          fi
-
-          if [ ! -f outputs/experiments.json ]; then
-            echo "❌ experiments.json missing!"
-            exit 1
-          fi
-
           echo "✅ All outputs generated"
           ls -R outputs/
 
@@ -125,22 +113,13 @@ jobs:
           tag_name: latest
           name: "Latest ML Pipeline Output"
           files: |
-            outputs/customer_segments.csv
-            outputs/feature_store/rfm_features_v1.csv
-            outputs/experiments.json
+            outputs/transformer_segments.csv
           body: |
             ✅ Auto-generated ML results
       
             - Dataset: Online Retail
-            - Pipeline: Customer Segmentation AI
+            - Architecture: Self-Supervised Trajectory Transformer
             - Run: ${{ github.run_number }}
-      
-            📦 Included Artifacts:
-            - Customer Segments
-            - Feature Store (RFM)
-            - Experiment Tracking
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ==============================
       # 🔹 UPLOAD ARTIFACTS (OPTIONAL)

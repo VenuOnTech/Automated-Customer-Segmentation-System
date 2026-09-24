@@ -16,16 +16,12 @@ sys.path.insert(0, ROOT_DIR)
 def test_imports():
     try:
         from src.data_ingestion.load_data import load_data
-        from src.data_ingestion.schema_detection import detect_columns
         from src.preprocessing.data_cleaning import clean_data
+        from src.preprocessing.sequence_builder import build_customer_trajectories
+        from src.representation.trajectory_transformer import CustomerTrajectoryTransformer
+        from src.training.contrastive_trainer import InfoNCELoss
+        from src.evaluation.cluster_evaluation import evaluate_clustering_quality
         from src.feature_engineering.rfm_features import create_rfm
-        from src.feature_engineering.multi_source_features import add_multi_source_features
-        from src.segmentation.kmeans_segmentation import run_kmeans
-        from src.prediction.future_prediction import predict_future_purchase
-        from src.explainability.shap_explainer import explain_customer
-        from src.monitoring.behavior_drift import detect_drift
-        from src.model_management.model_versioning import save_models
-
         print("✅ All imports successful")
         return True
     except ImportError as e:
