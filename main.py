@@ -16,7 +16,7 @@ from src.feature_engineering.rfm_features import create_rfm
 from src.segmentation.kmeans_segmentation import run_kmeans
 
 # UMAP for dashboard visualization
-import umap.umap_ as umap
+import umap
 
 def pad_sequences(trajectories, max_seq_len=20, max_basket_size=10):
     """Formats raw lists into padded PyTorch tensors."""
