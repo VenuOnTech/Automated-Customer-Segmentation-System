@@ -13,3 +13,6 @@ torch>=2.2.0
 plotly>=5.20.0
 fastapi
 uvicorn
+pyarrow>=14.0.0
+fastparquet>=2024.2.0
+hdbscan>=0.8.33
