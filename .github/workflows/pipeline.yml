@@ -67,15 +67,11 @@ jobs:
       - name: Download dataset
         run: |
           echo "📥 Downloading dataset..."
-
-          curl -L -o data/raw/Online_Retail.xlsx \
-          "[https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx](https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx)"
-
+          curl -L -o data/raw/Online_Retail.xlsx "https://github.com/VenuOnTech/Customer-Segmentation-AI-System/releases/download/v1.0.0-data/Online_Retail.xlsx"
           if [ ! -f data/raw/Online_Retail.xlsx ]; then
             echo "❌ Dataset download failed"
             exit 1
           fi
-
           echo "✅ Dataset ready"
           ls -lh data/raw/
 
